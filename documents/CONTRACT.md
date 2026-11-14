@@ -95,9 +95,31 @@ Refusal: `{ "reply": "I can only discuss the report currently open. Sharing anot
 
 ## GET /api/rules
 ```json
-{ "aliases": {"SGPT": "ALT"}, "ranges": [ {"test":"ALT","sex":"Female","age_min":18,"age_max":100,"low":7,"high":45,"unit":"U/L","source_file":"5_ranges_biochemistry.md"} ],
-  "urgent": [ {"test":"Hemoglobin","op":"<=","value":7.0,"unit":"g/dL"} ], "edge_rule": "Value exactly on a limit = NORMAL" }
+{ "aliases": {"SGPT": "ALT", "pH Level": "Urine pH"},
+  "ranges": [ {"test":"ALT","sex":"Female","age_min":18,"age_max":100,"low":7,"high":45,"text":null,"unit":"U/L","source_file":"5_ranges_biochemistry.md"},
+              {"test":"Urine Protein","sex":"All","age_min":18,"age_max":100,"low":null,"high":null,"text":"Negative","unit":null,"source_file":"6_ranges_thyroid_urine.md"} ],
+  "urgent": [ {"test":"Hemoglobin","op":"<=","value":7.0,"unit":"g/dL"} ],
+  "edge_rule": "Value exactly on a limit = NORMAL; age bounds are inclusive" }
 ```
+`aliases` includes the glossary aliases plus our documented context mappings. `text` is set only for qualitative ranges (then `low`/`high` are null).
+
+## Input notes
+- `sex` (query or body) is case-insensitive and accepts `Male`, `Female`, `M`, `F`. Anything else → 422 `invalid_input`.
+- `age` must be 0–130.
+- Patient IDs are case-insensitive (`p004` = `P004`).
+
+## Request IDs
+Every response carries an `X-Request-Id` header. A client may send its own `X-Request-Id` (letters, digits, `._-`, max 64 chars) and it is echoed back; otherwise the server makes one. The same ID appears in error JSON and in the server's LLM usage log, so a failed request can be traced.
 
 ## Errors
-`{ "error": "Patient not found", "code": "not_found" }` with HTTP 404 / 422 / 500. Errors never contain keys, stack traces or provider details.
+```json
+{ "error": "Patient not found", "code": "not_found", "request_id": "3f9c2a1b7d4e5f60" }
+```
+| HTTP | code | When |
+|---|---|---|
+| 404 | `not_found` | unknown patient or route |
+| 422 | `invalid_input` | bad query/body value (message names the field) |
+| 422 | `no_tests_found` | pasted text contains no recognisable test lines |
+| 500 | `internal_error` | anything unexpected ("Something went wrong on our side. Please try again.") |
+
+Errors never contain keys, stack traces or provider details.

@@ -32,3 +32,16 @@ def classify_patient(rules: Rules):
         )
 
     return run
+
+
+@pytest.fixture(autouse=True)
+def isolated_llm(monkeypatch, tmp_path):
+    """Every test: usage log in a temp file, offline provider unless a test injects one, no real sleeps."""
+    from app.llm import factory
+
+    monkeypatch.setattr(settings, "usage_log_path", tmp_path / "llm_usage.jsonl")
+    monkeypatch.setattr(settings, "llm_api_key", None)
+    monkeypatch.setattr(factory, "_sleep", lambda _seconds: None)
+    factory.get_provider.cache_clear()
+    yield
+    factory.get_provider.cache_clear()

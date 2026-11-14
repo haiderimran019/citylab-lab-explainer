@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_timeout_s: float = 20
     llm_max_retries: int = 3
+    llm_retry_budget_s: float = 25
     data_dir: Path = REPO_ROOT / "data" / "lab_reports"
     usage_log_path: Path = _DEFAULT_LOG
 

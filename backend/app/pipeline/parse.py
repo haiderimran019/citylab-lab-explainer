@@ -12,7 +12,7 @@ Supported test-line formats (all seen in the CityLab corpus):
 import re
 from dataclasses import dataclass, field
 
-from app.models import Sex
+from app.models import Sex, normalize_sex
 from app.pipeline.clean import NumberedLine, clean
 
 Value = int | float | str
@@ -100,16 +100,6 @@ def _parse_age(value: str) -> int | None:
     match = re.match(r"^(\d{1,3})\b", value)
     age = int(match.group(1)) if match else None
     return age if age is not None and age <= 130 else None
-
-
-def normalize_sex(value: str | None) -> Sex | None:
-    """Map 'male'/'M'/'female'/'F' (any case) to 'Male'/'Female'; anything else to None."""
-    lowered = (value or "").strip().lower()
-    if lowered in {"male", "m"}:
-        return "Male"
-    if lowered in {"female", "f"}:
-        return "Female"
-    return None
 
 
 def parse_demographics(lines: list[NumberedLine]) -> Demographics:

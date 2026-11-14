@@ -1,12 +1,36 @@
 """Pydantic models shared by the pipeline and the API (see documents/CONTRACT.md)."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 Status = Literal["normal", "low", "high", "urgent", "cannot_classify", "needs_info"]
 Sex = Literal["Male", "Female"]
 MissingField = Literal["age", "sex"]
+
+
+def normalize_sex(value: str | None) -> Sex | None:
+    """Map 'male'/'M'/'female'/'F' (any case) to 'Male'/'Female'; anything else to None."""
+    lowered = (value or "").strip().lower()
+    if lowered in {"male", "m"}:
+        return "Male"
+    if lowered in {"female", "f"}:
+        return "Female"
+    return None
+
+
+def _sex_input(value: object) -> Sex | None:
+    """Accept 'female', 'F', 'Male'… from clients; reject anything else with a clear message."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    sex = normalize_sex(value) if isinstance(value, str) else None
+    if sex is None:
+        raise ValueError("sex must be Male or Female")
+    return sex
+
+
+SexInput = Annotated[Sex | None, BeforeValidator(_sex_input)]
+"""A user-supplied sex override: case-insensitive, 'M'/'F' allowed, blank = not given."""
 
 
 class Source(BaseModel):
@@ -80,17 +104,21 @@ class GeneratedBy(BaseModel):
 
 
 class Analysis(BaseModel):
-    """Full analysis of one report."""
+    """Full analysis of one report.
+
+    `summary`, `doctor_questions`, `generated_by` and each result's `explanation` are null
+    when the analysis was requested with `explain=false` (statuses only).
+    """
 
     patient: Patient
     results: list[TestResult]
     missing_info: list[MissingField] = Field(default_factory=list)
     ask_message: str | None = None
     urgent_banner: str | None = None
-    doctor_questions: list[str] = Field(default_factory=list)
-    summary: str
+    doctor_questions: list[str] | None = None
+    summary: str | None = None
     disclaimer: str
-    generated_by: GeneratedBy
+    generated_by: GeneratedBy | None = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -98,7 +126,7 @@ class AnalyzeRequest(BaseModel):
 
     report_text: str = Field(min_length=1, max_length=200_000)
     age: int | None = Field(default=None, ge=0, le=130)
-    sex: Sex | None = None
+    sex: SexInput = None
 
 
 class ChatRequest(BaseModel):
@@ -108,7 +136,7 @@ class ChatRequest(BaseModel):
     report_text: str | None = Field(default=None, max_length=200_000)
     message: str = Field(min_length=1, max_length=2_000)
     age: int | None = Field(default=None, ge=0, le=130)
-    sex: Sex | None = None
+    sex: SexInput = None
 
 
 class ChatResponse(BaseModel):
@@ -130,8 +158,41 @@ class HealthResponse(BaseModel):
     patients: int
 
 
+class RuleRange(BaseModel):
+    """A reference range as shown in GET /api/rules."""
+
+    test: str
+    sex: str
+    age_min: int
+    age_max: int
+    low: int | float | None
+    high: int | float | None
+    text: str | None = None
+    unit: str | None
+    source_file: str
+
+
+class RuleUrgent(BaseModel):
+    """An urgent threshold as shown in GET /api/rules."""
+
+    test: str
+    op: Literal["<=", ">="]
+    value: int | float
+    unit: str
+
+
+class RulesResponse(BaseModel):
+    """Reply of GET /api/rules (for the "How it works" panel)."""
+
+    aliases: dict[str, str]
+    ranges: list[RuleRange]
+    urgent: list[RuleUrgent]
+    edge_rule: str
+
+
 class ErrorResponse(BaseModel):
     """Every error the API returns has this shape."""
 
     error: str
     code: str
+    request_id: str | None = None
