@@ -111,3 +111,21 @@ def test_unexpected_error_hides_details(monkeypatch) -> None:
     assert response.json()["code"] == "internal_error"
     assert "internal" not in response.json()["error"] and "secret" not in response.text
     assert response.headers["X-Request-Id"] == response.json()["request_id"]
+
+
+def test_frontend_page_is_never_cached_but_assets_are(tmp_path, monkeypatch) -> None:
+    """Regression: a cached old index.html pointed at deleted asset files → blank page after a deploy."""
+    from app.main import FrontendFiles
+
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<!doctype html><script src='/assets/app-123.js'></script>")
+    (tmp_path / "assets" / "app-123.js").write_text("console.log(1)")
+    from fastapi import FastAPI
+
+    site = FastAPI()
+    site.mount("/", FrontendFiles(directory=tmp_path, html=True))
+    web = TestClient(site)
+    assert web.get("/").headers["cache-control"] == "no-cache"
+    asset = web.get("/assets/app-123.js")
+    assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert asset.headers["content-type"].startswith("text/javascript")

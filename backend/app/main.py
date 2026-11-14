@@ -147,5 +147,21 @@ def rules() -> RulesResponse:
     )
 
 
-if (settings.frontend_dist / "index.html").exists():  # local single-server run: serve the built React app on the same origin
-    app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
+class FrontendFiles(StaticFiles):
+    """The built React app. The page is always re-checked; hashed assets are cached for a year.
+
+    Without this, a browser can keep an old `index.html` after a deploy, ask for asset files
+    that no longer exist and show a blank page.
+    """
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        if path.startswith("assets/") and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+if (settings.frontend_dist / "index.html").exists():  # Vercel and local single-server run: same origin as the API
+    app.mount("/", FrontendFiles(directory=settings.frontend_dist, html=True), name="frontend")
