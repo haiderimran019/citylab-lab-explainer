@@ -147,5 +147,5 @@ def rules() -> RulesResponse:
     )
 
 
-if (settings.frontend_dist / "index.html").exists():  # Docker: serve the built React app on the same origin
+if (settings.frontend_dist / "index.html").exists():  # local single-server run: serve the built React app on the same origin
     app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")

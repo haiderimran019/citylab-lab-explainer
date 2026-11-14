@@ -72,7 +72,9 @@ cd backend && ../.venv/bin/pytest -q
 ```bash
 .venv/bin/python backend/scripts/usage_stats.py           # calls, avg latency, tokens, fallback rate
 ```
-Deploy: `vercel.json` (React static + FastAPI function at `/api/*`) or `docker compose up --build` (one container on :8000).
+Deploy: `vercel.json` serves the React build as static files and FastAPI as a Python function at `/api/*` — one link, one origin, no CORS. Set `LLM_PROVIDER`, `LLM_MODEL` and `LLM_API_KEY` in Vercel's Environment Variables.
+
+Single local server (optional): after `npm run build` in `frontend/`, the same uvicorn command also serves the built app at http://localhost:8000.
 
 ## Assumptions (state them openly)
 
