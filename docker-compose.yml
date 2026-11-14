@@ -1,0 +1,17 @@
+# Fallback deployment: `docker compose up --build` → http://localhost:8000
+# The image builds the React frontend and serves it from FastAPI (one origin, no CORS),
+# exactly like the Vercel deployment. Usage logs persist in a named volume.
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - llm-logs:/app/backend/logs
+    restart: unless-stopped
+
+volumes:
+  llm-logs:
