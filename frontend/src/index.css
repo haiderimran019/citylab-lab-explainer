@@ -4,15 +4,15 @@
   --font-sans: 'Plus Jakarta Sans Variable', 'Noto Naskh Arabic', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* One violet accent. */
-  --color-accent-50: #f5f3ff;
-  --color-accent-100: #ebe7fe;
-  --color-accent-200: #d9d1fd;
-  --color-accent-500: #8b6cf7;
-  --color-accent-600: #7250f0;
-  --color-accent-700: #5f3dd6;
-  --color-accent-800: #4c2fb0;
-  --color-accent-900: #3b2587;
+  /* One calm teal accent (DDS §2). 600 keeps white button text above 4.5:1 contrast. */
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-200: #99f6e4;
+  --color-accent-500: #0d9488;
+  --color-accent-600: #0f766e;
+  --color-accent-700: #115e59;
+  --color-accent-800: #134e4a;
+  --color-accent-900: #0b3b37;
 
   /* Dark navy for the sidebar and phone top bar. */
   --color-ink-700: #2b2e42;
@@ -38,7 +38,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-[#f5f5fa] font-sans text-slate-800 antialiased;
+    @apply bg-[#f6f7f9] font-sans text-slate-800 antialiased;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent-600;

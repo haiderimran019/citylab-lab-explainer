@@ -1,4 +1,4 @@
-// First-visit tour: three short steps, skippable, remembered on this device.
+// Quick tour: three short steps, opened on demand from Settings (never pops up by itself).
 import { ClipboardList, MessageCircle, Users } from 'lucide-react'
 import { useState } from 'react'
 import { StatusLegend } from '../report/StatusLegend'

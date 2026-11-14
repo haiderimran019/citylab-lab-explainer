@@ -147,13 +147,13 @@ export function AddReportSheet({ open, onClose, onAnalyzed }: AddReportSheetProp
         )}
 
         {readBy && (
-          <div className="rounded-2xl bg-fuchsia-50 p-3.5 text-sm text-fuchsia-900 ring-1 ring-fuchsia-100">
+          <div className="rounded-2xl bg-sky-50 p-3.5 text-sm text-sky-900 ring-1 ring-sky-100">
             <p className="flex items-center gap-1.5 font-medium">
               <Sparkles aria-hidden className="size-4" /> Read by {readBy.by}
             </p>
             <p className="mt-1">Please check the values match your report before you continue.</p>
             {readBy.warnings.length > 0 && (
-              <ul className="mt-1.5 list-disc pl-5 text-fuchsia-800">
+              <ul className="mt-1.5 list-disc pl-5 text-sky-800">
                 {readBy.warnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}

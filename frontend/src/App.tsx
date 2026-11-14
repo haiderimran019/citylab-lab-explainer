@@ -81,7 +81,7 @@ export default function App() {
   const [settingsSheet, setSettingsSheet] = useState(false)
   const [largeText, setLargeText] = useStoredState('citylab.largeText', false)
   const [profile, setProfile] = useStoredState<Demographics>('citylab.profile', NO_OVERRIDES)
-  const [tourDone, setTourDone] = useStoredState('citylab.tourDone', false)
+  const [tourOpen, setTourOpen] = useState(false)
 
   const [shownKey, setShownKey] = useState(targetKey)
   if (shownKey !== targetKey) {
@@ -240,11 +240,11 @@ export default function App() {
         onProfile={setProfile}
         onReplayTour={() => {
           setSettingsSheet(false)
-          setTourDone(false)
+          setTourOpen(true)
         }}
       />
 
-      <Tour open={!tourDone} onDone={() => setTourDone(true)} />
+      <Tour open={tourOpen} onDone={() => setTourOpen(false)} />
 
       {isDesktop && (
         <Sheet

@@ -21,7 +21,7 @@ export function PageHeader({ patient, showPipeline, onTogglePipeline, onAsk }: P
     patient.mrn ? `MRN ${patient.mrn}` : null,
   ].filter(Boolean)
   return (
-    <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div className="min-w-0">
         <h1 className="text-2xl tracking-tight text-slate-900 sm:text-[28px]">
           <span className="font-medium text-slate-500">{pasted ? t('report.yours') : t('report.for')} </span>

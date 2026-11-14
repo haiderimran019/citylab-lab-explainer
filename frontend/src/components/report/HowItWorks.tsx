@@ -21,8 +21,8 @@ export function HowItWorks() {
       <ol className="scrollbar-none -mx-5 mt-4 flex snap-x gap-1 overflow-x-auto px-5 sm:mx-0 sm:grid sm:grid-cols-3 xl:grid-cols-6 sm:gap-2 sm:overflow-visible sm:px-0">
         {STEPS.map((step, i) => (
           <li key={step.name} className="flex shrink-0 snap-start items-center gap-1">
-            <div className={`w-32 rounded-2xl p-3 ring-1 sm:w-full ${i === 4 ? 'bg-fuchsia-50 ring-fuchsia-200' : 'bg-accent-50 ring-accent-100'}`}>
-              <p className={`text-xs font-semibold ${i === 4 ? 'text-fuchsia-700' : 'text-accent-700'}`}>Step {i + 1}</p>
+            <div className={`w-32 rounded-2xl p-3 ring-1 sm:w-full ${i === 4 ? 'bg-sky-50 ring-sky-200' : 'bg-accent-50 ring-accent-100'}`}>
+              <p className={`text-xs font-semibold ${i === 4 ? 'text-sky-700' : 'text-accent-700'}`}>Step {i + 1}</p>
               <p className="text-[15px] font-semibold text-slate-900">{step.name}</p>
               <p className="mt-0.5 text-xs leading-snug text-slate-600">{step.what}</p>
             </div>

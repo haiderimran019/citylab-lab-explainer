@@ -54,7 +54,7 @@ export function ResultRow({ result, explaining, showPipeline, defaultOpen = fals
               </span>
             )}
             {result.extracted_by === 'llm' && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-fuchsia-50 px-1.5 py-0.5 text-xs font-semibold text-fuchsia-700">
+              <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 text-xs font-semibold text-sky-700">
                 <Sparkles className="size-3" /> Read by AI
               </span>
             )}

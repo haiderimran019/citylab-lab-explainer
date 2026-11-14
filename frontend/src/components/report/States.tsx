@@ -100,16 +100,16 @@ export function Home({ list, health, onAddReport }: HomeProps) {
       </header>
 
       <section aria-label="At a glance" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatCard tint="cyan" label="Patient reports" value={list.patients?.length ?? health?.patients ?? '—'} icon={<Users className="size-4.5" />} />
+        <StatCard tone="accent" label="Patient reports" value={list.patients?.length ?? health?.patients ?? '—'} icon={<Users className="size-4.5" />} />
         <StatCard
-          tint="pink"
+          tone="good"
           label="Lab rules"
           value={<span className="text-xl sm:text-2xl">{health ? (health.rules_loaded ? 'Read from files' : 'Built-in copy') : '—'}</span>}
           icon={<ShieldCheck className="size-4.5" />}
         />
         <div className="col-span-2 lg:col-span-1">
           <StatCard
-            tint="lavender"
+            tone="muted"
             label="Explanations"
             value={<span className="text-xl sm:text-2xl">{health ? (offline ? t('explained.offline') : health.model) : '—'}</span>}
             icon={<Sparkles className="size-4.5" />}

@@ -92,7 +92,7 @@ export function SettingsSheet({ open, onClose, largeText, onLargeText, profile, 
         </div>
       </Row>
       <Row title="Help">
-        <Button onClick={onReplayTour}>Show the quick tour again</Button>
+        <Button onClick={onReplayTour}>Show the quick tour</Button>
       </Row>
     </Sheet>
   )
