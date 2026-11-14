@@ -2,6 +2,7 @@
 
 import httpx
 import pytest
+from pydantic import SecretStr
 from google.genai import errors
 
 from app.config import settings
@@ -25,7 +26,7 @@ def test_no_key_means_offline_template_provider() -> None:
 
 
 def test_key_selects_gemini_with_configured_model(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "llm_api_key", "test-key")
+    monkeypatch.setattr(settings, "llm_api_key", SecretStr("test-key"))
     monkeypatch.setattr(settings, "llm_model", "some-model-from-env")
     provider = get_provider()
     assert isinstance(provider, GeminiProvider)

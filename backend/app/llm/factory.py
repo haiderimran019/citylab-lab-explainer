@@ -23,15 +23,24 @@ def clamped_timeout() -> float:
     return min(max(settings.llm_timeout_s, MIN_TIMEOUT_S), MAX_TIMEOUT_S)
 
 
+SUPPORTED_PROVIDERS = ("gemini", "template")
+
+
 @lru_cache(maxsize=1)
 def get_provider() -> LLMProvider:
     """The provider named by `LLM_PROVIDER`, or the offline template when no key is set."""
-    if settings.llm_provider == "gemini" and settings.llm_api_key:
+    key = settings.api_key()
+    if settings.llm_provider == "gemini" and key:
         from app.llm.gemini import GeminiProvider  # imported lazily: only needed with a key
 
-        return GeminiProvider(settings.llm_api_key, settings.llm_model, clamped_timeout())
-    if settings.llm_provider != "template":
-        logger.warning("LLM provider %r unavailable (missing key or unknown); using templates", settings.llm_provider)
+        return GeminiProvider(key, settings.llm_model, clamped_timeout())
+    if settings.llm_provider == "gemini":
+        logger.warning("LLM_API_KEY is not set; using offline template explanations")
+    elif settings.llm_provider not in SUPPORTED_PROVIDERS:
+        logger.warning(
+            "Unknown LLM_PROVIDER %r (supported: %s); using offline template explanations",
+            settings.llm_provider, ", ".join(SUPPORTED_PROVIDERS),
+        )
     return TemplateProvider()
 
 

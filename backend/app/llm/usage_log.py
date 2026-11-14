@@ -1,7 +1,13 @@
 """Append-only JSONL usage log: one line per LLM call or template fallback.
 
-Records the real provider and model, latency, tokens and outcome. Never prompts, replies,
-file contents or patient data. The app only ever appends; it never edits or deletes lines.
+Records the real provider and model, latency, tokens, outcome, environment and release.
+Never prompts, replies, file contents or patient data. The app only ever appends; it never
+edits or deletes lines.
+
+Where records go:
+* the JSONL file (`USAGE_LOG_PATH`) — local runs keep it permanently;
+* stdout as `LLM_USAGE {...}` when `USAGE_LOG_STDOUT` is on (default on Vercel), because
+  Vercel's `/tmp` is wiped when an instance is recycled but its function logs are kept.
 """
 
 import json
@@ -16,6 +22,11 @@ from app.request_id import current_request_id
 
 logger = logging.getLogger(__name__)
 _lock = threading.Lock()
+STDOUT_PREFIX = "LLM_USAGE"
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 @dataclass(frozen=True)
@@ -31,17 +42,22 @@ class UsageRecord:
     output_tokens: int | None = None
     error_type: str | None = None
     fallback_used: bool = False
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    ts: str = field(default_factory=_utc_now)
     request_id: str | None = field(default_factory=current_request_id)
+    environment: str = field(default_factory=lambda: settings.app_env)
+    release: str | None = field(default_factory=lambda: settings.release)
 
 
 def append(record: UsageRecord) -> None:
-    """Append one record. A logging failure is reported but never breaks the request."""
+    """Append one record to the file (and stdout when enabled). Never breaks the request."""
+    line = json.dumps(asdict(record), ensure_ascii=False)
+    if settings.usage_log_stdout:
+        print(f"{STDOUT_PREFIX} {line}", flush=True)
     path = settings.usage_log_path
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with _lock, path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+            handle.write(line + "\n")
     except OSError:
         logger.warning("Could not write usage log at %s", path, exc_info=True)
 

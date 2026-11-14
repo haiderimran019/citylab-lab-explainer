@@ -14,9 +14,12 @@ backend/logs/
 # node
 node_modules/
 dist/
+.vite/
 .vercel/
 
 # local only
 .DS_Store
 backup/
 hackathon & rules/
+frontend-old-*/
+frontend-zip-copy/

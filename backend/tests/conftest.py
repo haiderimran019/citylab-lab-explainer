@@ -43,6 +43,8 @@ def isolated_llm(monkeypatch, tmp_path):
 
     monkeypatch.setattr(settings, "usage_log_path", tmp_path / "llm_usage.jsonl")
     monkeypatch.setattr(settings, "llm_api_key", None)
+    monkeypatch.setattr(settings, "app_env", "test")
+    monkeypatch.setattr(settings, "usage_log_stdout", False)
     monkeypatch.setattr(factory, "_sleep", lambda _seconds: None)
     factory.get_provider.cache_clear()
     explain.cache.clear()

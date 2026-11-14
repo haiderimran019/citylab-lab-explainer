@@ -36,7 +36,8 @@ Services: `app/analysis.py` (assembles an Analysis), `app/chat.py` (one-patient 
 - `gemini.py` — the **only** file importing the Google SDK. One shared HTTP client, SDK retries off (we retry), logs the model version the API reports.
 - `template.py` — the offline "provider": raises a clear `offline` error so callers serve template text.
 - `factory.py` — picks the provider from env vars; `call_with_retry` retries 429/5xx/timeouts at 1 s, 2 s, 4 s + jitter, within a time budget.
-- `usage_log.py` — append-only JSONL, one line per real call or fallback: time, request id, operation, provider, **real model**, latency, tokens, ok/error. Never prompts, replies, files or patient data.
+- `usage_log.py` — append-only JSONL, one line per real call or fallback: UTC time (ms), request id, operation, provider, **real model**, latency, tokens, ok/error, `environment` (local / vercel-production / vercel-preview) and `release` (deployed git commit). On Vercel each record is also printed as an `LLM_USAGE {...}` line to the function logs, because `/tmp` is wiped when an instance is recycled. Never prompts, replies, files or patient data. Test-run evidence is kept separately in `backend/test-evidence/`.
+- The API key is a `SecretStr`: it prints as `**********` and is only unwrapped inside `factory.get_provider()`.
 
 Switching provider = changing `LLM_PROVIDER` / `LLM_MODEL` / `LLM_API_KEY`. No code change, no frontend change.
 
