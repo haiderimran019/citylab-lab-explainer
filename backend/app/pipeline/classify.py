@@ -14,8 +14,8 @@ from app.models import MissingField, RangeUsed, Sex, Source, Status, TestResult
 from app.pipeline.normalize import UnitConversionError, canonical, convert, format_number
 from app.pipeline.parse import RawTest
 from app.pipeline.rules import RangeRule, Rules, UrgentRule
+from app.texts import URGENT_BANNER
 
-URGENT_BANNER = "⚠ One or more results are at a dangerous level. Please see a doctor today."
 CANNOT = "cannot be classified from the files"
 
 
@@ -128,6 +128,7 @@ def classify_test(
     fields = {
         "name_in_report": test.name, "canonical_name": name, "alias_note": alias_note,
         "value": test.value, "unit": test.unit, "source": Source(file=source_file, line=test.line),
+        "extracted_by": test.extracted_by,
     }
 
     def done(status: Status, reason: str, **extra) -> TestResult:
@@ -213,5 +214,5 @@ def classify_report(
         results=results,
         missing_info=missing_info,
         ask_message=build_ask_message(waiting_on, missing_info) if waiting_on else None,
-        urgent_banner=URGENT_BANNER if any(r.is_urgent for r in results) else None,
+        urgent_banner=URGENT_BANNER["en"] if any(r.is_urgent for r in results) else None,
     )

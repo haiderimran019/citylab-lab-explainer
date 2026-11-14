@@ -24,13 +24,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(REPO_ROOT / ".env", ".env"), extra="ignore")
 
     llm_provider: str = "gemini"
-    llm_model: str = "gemini-2.5-flash"
+    llm_model: str = "gemini-3.5-flash-lite"
     llm_api_key: str | None = None
     llm_timeout_s: float = 20
     llm_max_retries: int = 3
     llm_retry_budget_s: float = 25
+    rate_limit_per_minute: int = 20
     data_dir: Path = REPO_ROOT / "data" / "lab_reports"
     usage_log_path: Path = _DEFAULT_LOG
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    frontend_dist: Path = REPO_ROOT / "frontend" / "dist"
 
 
 settings = Settings()

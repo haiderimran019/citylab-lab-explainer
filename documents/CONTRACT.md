@@ -1,10 +1,22 @@
 # API Contract (shared by backend and frontend)
 Base path: `/api`. All JSON. Both Claudes must follow this exactly. Change it only through Haider.
 
+> **Changelog (backend):** v2 adds `explain` + `lang` query params, `POST /api/explain`, `POST /api/upload`,
+> `extracted_by` on each result, nullable explanation fields, health stats, `X-Request-Id`, `request_id`/`retry_after`
+> in errors, and HTTP 413/415/429/503 codes. No existing field was removed or renamed.
+
+## Common query params
+| Param | Values | Default | Used by |
+|---|---|---|---|
+| `explain` | `true` \| `false` | `true` | analysis endpoints. `false` = statuses only, no AI call, ~ms response |
+| `lang` | `en` \| `ur` | `en` | analysis endpoints, `/api/explain`, `/api/chat`. `ur` = summary, explanations, doctor questions, chat reply, disclaimer and urgent banner in simple Urdu. Test names, numbers, units, `status`, `reason` and ranges stay English (the frontend translates status labels). |
+
 ## GET /api/health
 ```json
-{ "status": "ok", "provider": "gemini", "model": "gemini-2.5-flash", "rules_loaded": true, "patients": 14 }
+{ "status": "ok", "provider": "gemini", "model": "gemini-3.5-flash-lite", "rules_loaded": true, "patients": 14,
+  "cache_size": 3, "llm_calls_today": 12, "fallbacks_today": 1, "avg_latency_ms": 1840 }
 ```
+`provider`/`model` are the ones actually in use (`"template"`/`"none"` when no key is set). The four stats come from today's (UTC) usage log; `avg_latency_ms` is `null` before the first successful AI call.
 
 ## GET /api/patients
 ```json
@@ -14,9 +26,17 @@ Base path: `/api`. All JSON. Both Claudes must follow this exactly. Change it on
 ]
 ```
 
-## GET /api/patients/{id}/analysis?age=32&sex=Female  (age and sex are optional overrides)
-## POST /api/analyze  body: { "report_text": "...", "age": null, "sex": null }
-Both return an **Analysis**. In the example below, the second result is borrowed from P005 to show the `converted` shape; a real response only contains one patient's tests.
+## GET /api/patients/{id}/analysis?age=32&sex=Female&explain=true&lang=en  (all params optional)
+## POST /api/analyze?explain=true&lang=en  body: { "report_text": "...", "age": null, "sex": null }
+Both return an **Analysis**.
+
+**Fast path for slow networks:** call with `explain=false` first → every `status`, `range`, `converted`, `reason`,
+`urgent_banner`, `missing_info`, `ask_message` and `disclaimer` arrives at once, while `summary`, `doctor_questions`,
+`generated_by` and every result's `explanation` are `null`. Then call `POST /api/explain` with that Analysis and fill the text in.
+Statuses are identical with `explain=true` and `explain=false` (tested).
+
+Each result also has `"extracted_by": "regex" | "llm"`. `"llm"` means the report's layout wasn't recognised and the AI copied the
+test lines (values are re-checked against the text by code); such results have `source.line = 0`. In the example below, the second result is borrowed from P005 to show the `converted` shape; a real response only contains one patient's tests.
 ```json
 {
   "patient": { "id": "P004", "name": "Diana Prince", "age": 42, "sex": "Female", "mrn": "CLD-P004-9942",
@@ -63,7 +83,7 @@ Both return an **Analysis**. In the example below, the second result is borrowed
   ],
   "summary": "Two results are below the normal range, and one of them is urgent...",
   "disclaimer": "This is not a diagnosis. Only a licensed doctor can diagnose a condition.",
-  "generated_by": { "provider": "gemini", "model": "gemini-2.5-flash" }
+  "generated_by": { "provider": "gemini", "model": "gemini-3.5-flash-lite" }
 }
 ```
 
@@ -79,7 +99,31 @@ Both return an **Analysis**. In the example below, the second result is borrowed
 
 **cannot_classify example (P006):** `"status": "cannot_classify", "range": null, "reason": "Serum Ferritin has no matching range in the reference files — cannot be classified from the files"`
 
-## POST /api/chat
+## POST /api/explain?lang=en
+Request: `{ "analysis": <Analysis exactly as returned with explain=false> }`
+Response:
+```json
+{ "summary": "Two results are below the normal range, and one of them is urgent...",
+  "explanations": { "Hemoglobin": "Hemoglobin is the part of your blood that carries oxygen...", "Platelet Count": "..." },
+  "doctor_questions": ["Should I see a doctor today about my Hemoglobin?", "..."],
+  "generated_by": { "provider": "gemini", "model": "gemini-3.5-flash-lite" } }
+```
+Keys of `explanations` are `canonical_name` (or `name_in_report` when `canonical_name` is null). Cached: the same results +
+language never call the AI twice. If the AI fails, template text is returned with `generated_by = {"provider":"template","model":"none"}`.
+
+## POST /api/upload  (multipart/form-data, field `file`)
+Accepts JPEG, PNG, WEBP or PDF up to 4 MB (both the content type and the file's magic bytes are checked).
+Text PDFs are read with pypdf (no AI); photos and scanned PDFs are transcribed by the AI provider. **Nothing is classified here**:
+show `report_text` in an editable box, let the user confirm, then call `POST /api/analyze`.
+```json
+{ "report_text": "Patient Full Name: Sam Lee\nRecorded Age: 30\n...\nHemoglobin: 13.2 g/dL\nPlatelet Count: [UNREADABLE] cells/mcL",
+  "extracted_by": "pypdf",
+  "warnings": ["1 part unreadable"] }
+```
+`extracted_by` is `"pypdf"` or `"<provider>/<model>"` (e.g. `"gemini/gemini-3.5-flash-lite"`). Possible warnings:
+`"N part(s) unreadable"`, `"No test lines recognised — please check the text before analyzing"`.
+
+## POST /api/chat?lang=en
 Request:
 ```json
 { "patient_id": "P014", "report_text": null, "message": "Is my sugar okay?", "age": null, "sex": null }
@@ -89,9 +133,12 @@ Response:
 { "reply": "Your Fasting Blood Sugar (FBS) is 85 mg/dL, which is inside the lab's normal range of 70–99...",
   "refused": false,
   "sources": [{ "file": "report_P014_Nancy_Multiple.md", "line": 12 }, { "file": "5_ranges_biochemistry.md", "line": 4 }],
-  "generated_by": { "provider": "gemini", "model": "gemini-2.5-flash" } }
+  "generated_by": { "provider": "gemini", "model": "gemini-3.5-flash-lite" } }
 ```
-Refusal: `{ "reply": "I can only discuss the report currently open. Sharing another patient's results is not allowed (CityLab Safety Rule 1: Privacy).", "refused": true, "sources": [{"file":"1_lab_safety_rules.md","line":3}] }`
+Refusal: `{ "reply": "I can only discuss the report currently open. Sharing another patient's results is not allowed (CityLab Safety Rule 1: Privacy).", "refused": true, "sources": [{"file":"1_lab_safety_rules.md","line":3}], "generated_by": null }`
+
+`report_text` can replace `patient_id` for a pasted report. `age`/`sex` work like the analysis overrides (the chat never takes sex from the message text).
+`generated_by` is `{"provider":"template","model":"none"}` when the AI was unavailable or its answer was unsafe.
 
 ## GET /api/rules
 ```json
@@ -118,8 +165,17 @@ Every response carries an `X-Request-Id` header. A client may send its own `X-Re
 | HTTP | code | When |
 |---|---|---|
 | 404 | `not_found` | unknown patient or route |
+| 413 | `file_too_large` | upload over 4 MB |
+| 415 | `unsupported_type` | upload not JPEG/PNG/WEBP/PDF, or bytes don't match the declared type |
 | 422 | `invalid_input` | bad query/body value (message names the field) |
 | 422 | `no_tests_found` | pasted text contains no recognisable test lines |
+| 422 | `unreadable_image` | photo too unclear / PDF unreadable |
+| 429 | `rate_limited` | more than 20 AI-backed requests per minute from one IP (body has `retry_after` seconds; `Retry-After` header too) |
 | 500 | `internal_error` | anything unexpected ("Something went wrong on our side. Please try again.") |
+| 503 | `ai_unavailable` | a photo needs the AI to be read, and the AI is offline or failing |
+
+AI-backed (rate-limited) requests: analysis with `explain=true`, `/api/explain`, `/api/chat`, `/api/upload`. `explain=false` is never rate-limited.
+
+Rate-limit example: `{ "error": "Too many requests, please wait a moment", "code": "rate_limited", "request_id": "…", "retry_after": 42 }`
 
 Errors never contain keys, stack traces or provider details.

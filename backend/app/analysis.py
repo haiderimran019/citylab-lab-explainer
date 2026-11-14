@@ -1,23 +1,30 @@
-"""Assemble an `Analysis` from report text: clean → parse → normalize → classify.
+"""Assemble an `Analysis` from report text: clean → parse → normalize → classify (→ explain).
 
-Everything here is deterministic and makes no network call, so `explain=false` responses
+The classify part is deterministic and makes no network call, so `explain=false` responses
 are fast. Explanations are added on top by `app.pipeline.explain`.
 """
 
 from app.config import settings
 from app.errors import AppError
-from app.models import Analysis, Patient, Sex
+from app.models import Analysis, Lang, Patient, Sex
 from app.pipeline.classify import classify_report
+from app.pipeline.explain import apply_explanation, explain
+from app.pipeline.extract import extract_tests_with_llm
 from app.pipeline.parse import ParsedReport, parse_report
 from app.pipeline.rules import load_rules
-from app.texts import DISCLAIMER
+from app.texts import DISCLAIMER, URGENT_BANNER
 
 CUSTOM_ID = "custom"
 PASTED_FILE = "pasted_report"
 
 
 def classify_parsed(
-    parsed: ParsedReport, patient_id: str, file: str, age: int | None = None, sex: Sex | None = None
+    parsed: ParsedReport,
+    patient_id: str,
+    file: str,
+    age: int | None = None,
+    sex: Sex | None = None,
+    lang: Lang = "en",
 ) -> Analysis:
     """Statuses-only analysis. `age`/`sex` override the report's values when given."""
     age_used = age if age is not None else parsed.demographics.age
@@ -32,14 +39,33 @@ def classify_parsed(
         results=classification.results,
         missing_info=classification.missing_info,
         ask_message=classification.ask_message,
-        urgent_banner=classification.urgent_banner,
-        disclaimer=DISCLAIMER,
+        urgent_banner=URGENT_BANNER[lang] if classification.urgent_banner else None,
+        disclaimer=DISCLAIMER[lang],
     )
 
 
+def build_analysis(
+    parsed: ParsedReport,
+    patient_id: str,
+    file: str,
+    age: int | None = None,
+    sex: Sex | None = None,
+    explain_results: bool = True,
+    lang: Lang = "en",
+) -> Analysis:
+    """Classified analysis, plus AI/template explanations when `explain_results` is True."""
+    analysis = classify_parsed(parsed, patient_id, file, age, sex, lang)
+    return apply_explanation(analysis, explain(analysis, lang), lang) if explain_results else analysis
+
+
 def parse_pasted(report_text: str) -> ParsedReport:
-    """Parse user-supplied text. Raises a 422 AppError when no test line can be found."""
+    """Parse user-supplied text. If no regex format matches, ask the LLM to extract test lines.
+
+    Raises a 422 AppError when neither finds a test.
+    """
     parsed = parse_report(report_text)
+    if not parsed.tests:
+        parsed = ParsedReport(demographics=parsed.demographics, tests=extract_tests_with_llm(report_text))
     if not parsed.tests:
         raise AppError(
             422, "no_tests_found",

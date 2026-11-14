@@ -9,6 +9,7 @@ import logging
 import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from app.config import settings
 from app.request_id import current_request_id
@@ -43,3 +44,61 @@ def append(record: UsageRecord) -> None:
             handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
     except OSError:
         logger.warning("Could not write usage log at %s", path, exc_info=True)
+
+
+def read_records(path: Path | None = None) -> list[dict]:
+    """Every record in the log (malformed lines are skipped). Missing file → []."""
+    path = path or settings.usage_log_path
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    records = []
+    for line in lines:
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
+
+
+@dataclass(frozen=True)
+class UsageSummary:
+    """Aggregates for /api/health and the README's cost-and-speed section."""
+
+    llm_calls: int
+    ok_calls: int
+    fallbacks: int
+    avg_latency_ms: int | None
+    input_tokens: int
+    output_tokens: int
+
+    @property
+    def fallback_rate(self) -> float:
+        """Share of user-facing AI operations that were answered by templates."""
+        served = self.ok_calls + self.fallbacks
+        return self.fallbacks / served if served else 0.0
+
+
+def summarize(records: list[dict], day: str | None = None) -> UsageSummary:
+    """Summarise records, optionally only those whose UTC timestamp starts with `day` (YYYY-MM-DD).
+
+    A "call" is a real provider attempt; template fallbacks are counted separately.
+    """
+    chosen = [r for r in records if day is None or str(r.get("ts", "")).startswith(day)]
+    calls = [r for r in chosen if not r.get("fallback_used")]
+    ok = [r for r in calls if r.get("ok")]
+    latencies = [r.get("latency_ms") or 0 for r in ok]
+    return UsageSummary(
+        llm_calls=len(calls),
+        ok_calls=len(ok),
+        fallbacks=sum(1 for r in chosen if r.get("fallback_used")),
+        avg_latency_ms=round(sum(latencies) / len(latencies)) if latencies else None,
+        input_tokens=sum(r.get("input_tokens") or 0 for r in ok),
+        output_tokens=sum(r.get("output_tokens") or 0 for r in ok),
+    )
+
+
+def today() -> str:
+    """Today's date in UTC, as used in record timestamps."""
+    return datetime.now(timezone.utc).date().isoformat()

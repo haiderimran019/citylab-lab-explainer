@@ -11,6 +11,7 @@ Supported test-line formats (all seen in the CityLab corpus):
 
 import re
 from dataclasses import dataclass, field
+from typing import Literal
 
 from app.models import Sex, normalize_sex
 from app.pipeline.clean import NumberedLine, clean
@@ -36,6 +37,7 @@ class RawTest:
     value: Value
     unit: str | None
     line: int
+    extracted_by: Literal["regex", "llm"] = "regex"
 
 
 @dataclass(frozen=True)
@@ -153,7 +155,7 @@ def parse_value(raw: str) -> tuple[Value, str | None] | None:
     return (float(number) if "." in number else int(number)), unit
 
 
-def _is_test_name(name: str) -> bool:
+def is_test_name(name: str) -> bool:
     """A plausible test name: starts with a letter, short, and not a demographic/meta label."""
     return (
         0 < len(name) <= 60
@@ -167,7 +169,7 @@ def _make_test(name: str, raw_value: str, line_no: int, unit: str | None = None)
     """Build a RawTest if `name` and `raw_value` look like a real lab result."""
     name = _strip_markdown(name).rstrip(":").strip()
     parsed = parse_value(raw_value)
-    if parsed is None or not _is_test_name(name):
+    if parsed is None or not is_test_name(name):
         return None
     value, inline_unit = parsed
     return RawTest(name=name, value=value, unit=unit or inline_unit, line=line_no)

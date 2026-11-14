@@ -8,7 +8,9 @@ from app.config import settings
 from app.models import Sex
 from app.pipeline.classify import Classification, classify_report
 from app.pipeline.parse import parse_report
+from app.pipeline import explain
 from app.pipeline.rules import Rules, load_rules
+from app.ratelimit import limiter
 
 
 @pytest.fixture(scope="session")
@@ -43,5 +45,17 @@ def isolated_llm(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "llm_api_key", None)
     monkeypatch.setattr(factory, "_sleep", lambda _seconds: None)
     factory.get_provider.cache_clear()
-    yield
-    factory.get_provider.cache_clear()
+    explain.cache.clear()
+    limiter.reset()
+
+
+@pytest.fixture
+def use_provider(monkeypatch):
+    """`use_provider(FakeProvider(...))` routes every LLM call in the app to that provider."""
+    from app.llm import factory
+
+    def install(provider):
+        monkeypatch.setattr(factory, "get_provider", lambda: provider)
+        return provider
+
+    return install

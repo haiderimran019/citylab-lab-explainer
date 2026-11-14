@@ -7,6 +7,7 @@ from pydantic import BaseModel, BeforeValidator, Field
 Status = Literal["normal", "low", "high", "urgent", "cannot_classify", "needs_info"]
 Sex = Literal["Male", "Female"]
 MissingField = Literal["age", "sex"]
+Lang = Literal["en", "ur"]
 
 
 def normalize_sex(value: str | None) -> Sex | None:
@@ -77,6 +78,7 @@ class TestResult(BaseModel):
     reason: str
     explanation: str | None = None
     source: Source
+    extracted_by: Literal["regex", "llm"] = "regex"
 
 
 class Patient(BaseModel):
@@ -148,14 +150,42 @@ class ChatResponse(BaseModel):
     generated_by: GeneratedBy | None = None
 
 
+class ExplainRequest(BaseModel):
+    """Body of POST /api/explain: an Analysis previously returned with `explain=false`."""
+
+    analysis: Analysis
+
+
+class ExplainResponse(BaseModel):
+    """Plain-language text for an Analysis. Keys of `explanations` are canonical names
+    (or the report's own name when a test has no canonical name)."""
+
+    summary: str
+    explanations: dict[str, str]
+    doctor_questions: list[str]
+    generated_by: GeneratedBy
+
+
+class UploadResponse(BaseModel):
+    """Reply of POST /api/upload. The text is NOT classified yet: the user confirms it first."""
+
+    report_text: str
+    extracted_by: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class HealthResponse(BaseModel):
-    """Reply of GET /api/health. Never contains keys."""
+    """Reply of GET /api/health. Never contains keys. Stats are computed from today's usage log (UTC)."""
 
     status: Literal["ok"]
     provider: str
     model: str
     rules_loaded: bool
     patients: int
+    cache_size: int = 0
+    llm_calls_today: int = 0
+    fallbacks_today: int = 0
+    avg_latency_ms: int | None = None
 
 
 class RuleRange(BaseModel):
@@ -196,3 +226,4 @@ class ErrorResponse(BaseModel):
     error: str
     code: str
     request_id: str | None = None
+    retry_after: int | None = None

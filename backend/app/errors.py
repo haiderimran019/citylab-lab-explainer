@@ -22,17 +22,31 @@ INTERNAL_ERROR = "Something went wrong on our side. Please try again."
 class AppError(Exception):
     """An expected error with a user-facing message and a stable machine-readable code."""
 
-    def __init__(self, status_code: int, code: str, message: str, headers: dict[str, str] | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        headers: dict[str, str] | None = None,
+        extra: dict[str, int | str] | None = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.headers = headers or {}
+        self.extra = extra or {}
 
 
-def error_response(status_code: int, code: str, message: str, headers: dict[str, str] | None = None) -> JSONResponse:
-    """JSON error body in the shape every endpoint shares."""
-    body = {"error": message, "code": code, "request_id": current_request_id()}
+def error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    headers: dict[str, str] | None = None,
+    extra: dict[str, int | str] | None = None,
+) -> JSONResponse:
+    """JSON error body in the shape every endpoint shares (`extra` adds e.g. `retry_after`)."""
+    body = {"error": message, "code": code, "request_id": current_request_id(), **(extra or {})}
     return JSONResponse(status_code=status_code, content=body, headers=headers)
 
 
@@ -59,7 +73,7 @@ def install_error_handling(app: FastAPI) -> None:
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
-        return error_response(exc.status_code, exc.code, exc.message, exc.headers)
+        return error_response(exc.status_code, exc.code, exc.message, exc.headers, exc.extra)
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
