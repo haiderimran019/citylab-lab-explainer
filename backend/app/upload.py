@@ -53,9 +53,16 @@ def validate_upload(content_type: str | None, data: bytes) -> str:
     return mime
 
 
-def _meaningful_chars(text: str) -> int:
-    """Letters and digits, ignoring [UNREADABLE] markers and whitespace."""
-    return len(re.findall(r"[^\W_]", text.replace(UNREADABLE, "")))
+_TRANSCRIPT_LABELS = re.compile(r"patient full name|recorded age|biological sex|medical record number", re.IGNORECASE)
+
+
+def _meaningful_chars(text: str, ignore_labels: bool = False) -> int:
+    """Letters and digits, ignoring [UNREADABLE] markers. With `ignore_labels`, also ignores the
+    field labels the transcription instruction asks for (a blank photo can come back as labels only)."""
+    text = text.replace(UNREADABLE, "")
+    if ignore_labels:
+        text = _TRANSCRIPT_LABELS.sub("", text)
+    return len(re.findall(r"[^\W_]", text))
 
 
 def _pdf_text(data: bytes) -> str:
@@ -99,7 +106,7 @@ def read_upload(content_type: str | None, data: bytes) -> UploadResponse:
         text = _pdf_text(data)
     if _meaningful_chars(text) < MIN_MEANINGFUL_CHARS:
         text, extracted_by = _transcribe(data, mime)
-        if _meaningful_chars(text) < MIN_MEANINGFUL_CHARS:
+        if not parse_report(text).tests and _meaningful_chars(text, ignore_labels=True) < MIN_MEANINGFUL_CHARS:
             raise AppError(422, "unreadable_image", "The photo is too unclear to read. Please retake it in good light, flat and in focus.")
     report_text = "\n".join(line for _, line in clean(text)).strip()
     return UploadResponse(report_text=report_text, extracted_by=extracted_by, warnings=_warnings(report_text))

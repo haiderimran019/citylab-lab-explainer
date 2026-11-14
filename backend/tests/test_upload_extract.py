@@ -120,6 +120,19 @@ def test_blurry_photo_is_unreadable(use_provider) -> None:
     assert (response.status_code, response.json()["code"]) == (422, "unreadable_image")
 
 
+def test_blank_photo_with_only_labels_is_unreadable(use_provider) -> None:
+    labels_only = "Patient Full Name: [UNREADABLE]\nRecorded Age: [UNREADABLE]\nBiological Sex: [UNREADABLE]\nMedical Record Number: [UNREADABLE]"
+    use_provider(FakeProvider(labels_only))
+    response = _upload(PNG, "image/png")
+    assert (response.status_code, response.json()["code"]) == (422, "unreadable_image")
+
+
+def test_photo_with_one_readable_test_is_kept(use_provider) -> None:
+    use_provider(FakeProvider("Patient Full Name: [UNREADABLE]\nRecorded Age: [UNREADABLE]\nHb: 6.5 g/dL"))
+    body = _upload(PNG, "image/png").json()
+    assert "Hb: 6.5 g/dL" in body["report_text"] and body["warnings"] == ["2 parts unreadable"]
+
+
 def test_corrupt_pdf_is_unreadable() -> None:
     response = _upload(b"%PDF-1.4 garbage without structure", "application/pdf")
     assert response.json()["code"] in ("unreadable_image", "ai_unavailable")
