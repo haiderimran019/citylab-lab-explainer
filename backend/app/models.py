@@ -19,7 +19,7 @@ class Source(BaseModel):
 class Conversion(BaseModel):
     """A unit conversion applied before comparing, with the math spelled out."""
 
-    value: float
+    value: int | float
     unit: str
     steps: str
 
@@ -27,8 +27,8 @@ class Conversion(BaseModel):
 class RangeUsed(BaseModel):
     """The reference range a result was compared against."""
 
-    low: float | None
-    high: float | None
+    low: int | float | None
+    high: int | float | None
     text: str | None = None
     unit: str | None
     sex: str
