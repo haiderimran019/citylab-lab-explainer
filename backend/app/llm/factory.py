@@ -31,9 +31,13 @@ def get_provider() -> LLMProvider:
     """The provider named by `LLM_PROVIDER`, or the offline template when no key is set."""
     key = settings.api_key()
     if settings.llm_provider == "gemini" and key:
-        from app.llm.gemini import GeminiProvider  # imported lazily: only needed with a key
+        try:
+            from app.llm.gemini import GeminiProvider  # imported lazily: only needed with a key
 
-        return GeminiProvider(key, settings.llm_model, clamped_timeout())
+            return GeminiProvider(key, settings.llm_model, clamped_timeout())
+        except Exception:  # noqa: BLE001 — a broken install must never take the app down
+            logger.exception("Gemini provider failed to start; using offline template explanations")
+            return TemplateProvider()
     if settings.llm_provider == "gemini":
         logger.warning("LLM_API_KEY is not set; using offline template explanations")
     elif settings.llm_provider not in SUPPORTED_PROVIDERS:

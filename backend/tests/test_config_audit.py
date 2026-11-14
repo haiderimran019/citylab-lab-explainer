@@ -126,3 +126,30 @@ def test_environment_and_release_locally(monkeypatch) -> None:
         monkeypatch.delenv(name, raising=False)
     loaded = Settings(_env_file=None)
     assert (loaded.app_env, loaded.release, loaded.usage_log_stdout) == ("local", None, False)
+
+
+def test_broken_provider_install_falls_back_instead_of_crashing(monkeypatch, caplog) -> None:
+    """Regression: on Vercel a missing dependency made every AI request return 500."""
+    import builtins
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    real_import = builtins.__import__
+
+    def failing_import(name, *args, **kwargs):
+        if name == "app.llm.gemini":
+            raise ModuleNotFoundError("No module named 'httpx'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(settings, "llm_api_key", SecretStr("some-key"))
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+    factory.get_provider.cache_clear()
+    with caplog.at_level(logging.ERROR):
+        client = TestClient(app)
+        health = client.get("/api/health")
+        analysis = client.get("/api/patients/P004/analysis")
+    assert health.status_code == 200 and health.json()["provider"] == "template"
+    assert analysis.status_code == 200 and analysis.json()["results"][0]["status"] == "urgent"
+    assert "Gemini provider failed to start" in caplog.text
