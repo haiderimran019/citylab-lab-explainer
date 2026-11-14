@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.models import HealthResponse
+from app.pipeline.rules import load_rules
 
 app = FastAPI(
     title="CityLab Lab Report Explainer",
@@ -26,6 +27,6 @@ def health() -> HealthResponse:
         status="ok",
         provider=settings.llm_provider,
         model=settings.llm_model,
-        rules_loaded=False,
+        rules_loaded=load_rules(settings.data_dir).from_files,
         patients=_count_report_files(),
     )
