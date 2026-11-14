@@ -36,4 +36,7 @@ NO_DIAGNOSIS: dict[Lang, str] = {
     "ur": "میں یہ نہیں بتا سکتا کہ آپ کو کوئی بیماری ہے یا نہیں — صرف لائسنس یافتہ ڈاکٹر ہی تشخیص کر سکتا ہے۔ نمبر یہ بتاتے ہیں:",
 }
 
-LANGUAGE_NAME: dict[Lang, str] = {"en": "simple English", "ur": "simple Urdu (اردو)"}
+LANGUAGE_NAME: dict[Lang, str] = {
+    "en": "simple English",
+    "ur": "simple Urdu written in Urdu script (اردو حروف), never Roman Urdu",
+}
