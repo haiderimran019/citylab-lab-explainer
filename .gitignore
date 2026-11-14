@@ -1,0 +1,22 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+backend/logs/
+
+# node
+node_modules/
+dist/
+.vercel/
+
+# local only
+.DS_Store
+backup/
+hackathon & rules/
