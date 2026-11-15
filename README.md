@@ -3,7 +3,7 @@
 > **Code does the medical math. AI only does the talking.**
 
 **Live app:** https://citylab-lab-explainer.vercel.app · **API docs:** https://citylab-lab-explainer.vercel.app/api/docs
-Tech Fusion '26 AI Hackathon · Challenge B · by Haider Imran
+Built solo for the **AI Hackathon (Flagship) at Tech Fusion 2026** — Bahria University Islamabad, E-8 Campus · 14 November 2026 · Challenge B · **placed 3rd of 30** · by Haider Imran
 
 ---
 
